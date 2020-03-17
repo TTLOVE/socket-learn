@@ -31,7 +31,7 @@
 </div>
 </div>
 <div class="message_template">
-<li class="message"
+<li class="message">
    <div class="avatar"></div>
    <div class="text_wrapper">
      <div class="text">
@@ -41,10 +41,8 @@
 </div>
 <script>
 // Socket Server
-var conn = new WebSocket('ws://localhost:8000');
-conn.onopen = function(e) {
-   console.log("Connection established!");
-};
+var conn = new WebSocket('ws://localhost:8080/chat');
+conn.onopen = function(e) { conn.send('Hello Me!'); };
 (function () {
   var Message;
   Message = function (arg) {

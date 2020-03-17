@@ -1,96 +1,50 @@
 <?php
+use Ratchet\ConnectionInterface;
+use Ratchet\MessageComponentInterface;
 
-require 'vendor/autoload.php';
+// Make sure composer dependencies have been installed
+require __DIR__ . '/vendor/autoload.php';
 
-use React\Socket\ConnectionInterface;
-
-class ConnectionsPool 
+/**
+ * chat.php
+ * Send any incoming messages to all connected clients (except sender)
+ */
+class MyChat implements MessageComponentInterface
 {
-    /** @var SplObjectStorage  */
-    private $connections;
+    protected $clients;
 
     public function __construct()
     {
-        $this->connections = new SplObjectStorage();
+        $this->clients = new \SplObjectStorage;
     }
 
-    public function add(ConnectionInterface $connection)
+    public function onOpen(ConnectionInterface $conn)
     {
-        $connection->write("Enter your name: ");
-        $this->initEvents($connection);
-        $this->setConnectionData($connection, []);
+        $this->clients->attach($conn);
     }
 
-    /**
-     * @param ConnectionInterface $connection
-     */
-    private function initEvents(ConnectionInterface $connection)
+    public function onMessage(ConnectionInterface $from, $msg)
     {
-        // On receiving the data we loop through other connections
-        // from the pool and write this data to them
-        $connection->on('data', function ($data) use ($connection) {
-            $connectionData = $this->getConnectionData($connection);
-
-            // It is the first data received, so we consider it as
-            // a user's name.
-            if(empty($connectionData)) {
-                $this->addNewMember($data, $connection);
-                return;
+        foreach ($this->clients as $client) {
+            if ($from != $client) {
+                $client->send($msg);
             }
-
-            $name = $connectionData['name'];
-            $this->sendAll("$name: $data", $connection);
-        });
-
-        // When connection closes detach it from the pool
-        $connection->on('close', function() use ($connection){
-            $data = $this->getConnectionData($connection);
-            $name = $data['name'] ?? '';
-
-            $this->connections->offsetUnset($connection);
-            $this->sendAll("User $name leaves the chat\n", $connection);
-        });
-    }
-
-    private function addNewMember($name, $connection)
-    {
-        $name = str_replace(["\n", "\r"], "", $name);
-        $this->setConnectionData($connection, ['name' => $name]);
-        $this->sendAll("User $name joins the chat\n", $connection);
-    }
-
-    private function setConnectionData(ConnectionInterface $connection, $data)
-    {
-        $this->connections->offsetSet($connection, $data);
-    }
-
-    private function getConnectionData(ConnectionInterface $connection)
-    {
-        return $this->connections->offsetGet($connection);
-    }
-
-    /**
-     * Send data to all connections from the pool except
-     * the specified one.
-     *
-     * @param mixed $data
-     * @param ConnectionInterface $except
-     */
-    private function sendAll($data, ConnectionInterface $except) {
-        foreach ($this->connections as $conn) {
-            if ($conn != $except) $conn->write($data);
         }
+    }
+
+    public function onClose(ConnectionInterface $conn)
+    {
+        $this->clients->detach($conn);
+    }
+
+    public function onError(ConnectionInterface $conn, \Exception $e)
+    {
+        $conn->close();
     }
 }
 
-$loop   = React\EventLoop\Factory::create();
-$socket = new React\Socket\Server('ws://127.0.0.1:8080', $loop);
-$pool   = new ConnectionsPool();
-
-$socket->on('connection', function (ConnectionInterface $connection) use ($pool) {
-    $pool->add($connection);
-});
-
-echo "Listening on {$socket->getAddress()}\n";
-
-$loop->run();
+// Run the server application through the WebSocket protocol on port 8080
+$app = new Ratchet\App('localhost', 8080);
+$app->route('/chat', new MyChat, array('*'));
+$app->route('/echo', new Ratchet\Server\EchoServer, array('*'));
+$app->run();
