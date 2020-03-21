@@ -16,3 +16,4 @@ Route::get('', function () {
 });
 
 Route::get('kk', 'WebsocketController@startWebsocket');
+Route::get('new', 'WebsocketController@newSocket');

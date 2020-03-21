@@ -13,7 +13,11 @@ class WebsocketController extends Controller
 {
     public function startWebsocket(Request $request)
     {
-        // return view('websocket');
+        return view('websocket');
+    }
+
+    public function newSocket()
+    {
         return view('websocket-new');
     }
 }
