@@ -112,10 +112,6 @@ class ConnectionsPool
         // from the pool and write this data to them
         $connection->on('data', function ($data) use ($connection) {
             $connectionData = $this->getConnectionData($connection);
-            echo "\npre_data\n";
-            var_export($data);
-            echo "\nconnectionData\n";
-            var_export($connectionData);
 
             // It is the first data received, so we consider it as
             // a user's name.
@@ -169,8 +165,6 @@ class ConnectionsPool
     {
         foreach ($this->connections as $conn) {
             if ($conn != $except) {
-                echo "\nwrite\n";
-                var_export($data);
                 $conn->write($data);
             }
 
